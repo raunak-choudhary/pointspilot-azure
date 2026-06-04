@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 export const runtime = "nodejs";
 
 const ai = new OpenAI({
-  baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}/openai/v1/`,
+  baseURL: `${(process.env.AZURE_OPENAI_ENDPOINT || "").replace(/\/$/, "")}/openai/v1/`,
   apiKey: process.env.AZURE_OPENAI_API_KEY!,
   defaultQuery: { "api-version": "preview" },
 });
