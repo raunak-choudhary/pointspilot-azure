@@ -1,15 +1,17 @@
-import OpenAI from "openai";
+import { AzureOpenAI } from "openai";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
-const ai = new OpenAI({
-  baseURL: `${(process.env.AZURE_OPENAI_ENDPOINT || "").replace(/\/$/, "")}/openai/v1/`,
-  apiKey: process.env.AZURE_OPENAI_API_KEY!,
-  defaultQuery: { "api-version": "preview" },
-});
 const DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o-mini";
+
+const ai = new AzureOpenAI({
+  endpoint: (process.env.AZURE_OPENAI_ENDPOINT || "").replace(/\/$/, ""),
+  apiKey: process.env.AZURE_OPENAI_API_KEY!,
+  apiVersion: "2024-10-21",
+  deployment: DEPLOYMENT,
+});
 
 const supa =
   process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY

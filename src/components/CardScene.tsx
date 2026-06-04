@@ -28,16 +28,19 @@ export default function CardScene({ cards }: { cards: SceneCard[] }) {
     renderer.setClearColor(0x000000, 0);
     mount.appendChild(renderer.domElement);
 
-    // Ambient
-    scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+    // Ambient — bright so cards are always visible
+    scene.add(new THREE.AmbientLight(0xffffff, 1.2));
 
-    // Global fill
-    const fill = new THREE.PointLight(0x6c63ff, 1.2, 20);
+    // Global fill lights
+    const fill = new THREE.PointLight(0x6c63ff, 2.0, 20);
     fill.position.set(-4, 3, 4);
     scene.add(fill);
-    const warmFill = new THREE.PointLight(0xd4af37, 0.6, 15);
+    const warmFill = new THREE.PointLight(0xd4af37, 1.2, 15);
     warmFill.position.set(4, -2, 4);
     scene.add(warmFill);
+    const frontFill = new THREE.DirectionalLight(0xffffff, 0.8);
+    frontFill.position.set(0, 0, 5);
+    scene.add(frontFill);
 
     const cardGeo = new THREE.BoxGeometry(2.4, 1.5, 0.06, 1, 1, 1);
     const meshes: THREE.Mesh[] = [];
@@ -46,12 +49,14 @@ export default function CardScene({ cards }: { cards: SceneCard[] }) {
     const spreadX = count === 1 ? 0 : count === 2 ? 1.8 : 2.7;
 
     cards.forEach((card, i) => {
+      const baseColor = new THREE.Color(card.color || "#6c63ff");
+      baseColor.multiplyScalar(card.isWinner ? 1.4 : 1.0); // boost winner brightness
       const mat = new THREE.MeshPhongMaterial({
-        color: new THREE.Color(card.color || "#6c63ff"),
-        shininess: card.isWinner ? 140 : 60,
-        specular: new THREE.Color(card.isWinner ? 0xffffff : 0x666666),
-        emissive: new THREE.Color(card.isWinner ? card.color : "#000000"),
-        emissiveIntensity: card.isWinner ? 0.15 : 0,
+        color: baseColor,
+        shininess: card.isWinner ? 160 : 80,
+        specular: new THREE.Color(0xffffff),
+        emissive: new THREE.Color(card.color || "#6c63ff"),
+        emissiveIntensity: card.isWinner ? 0.4 : 0.15,
       });
 
       const mesh = new THREE.Mesh(cardGeo, mat);
