@@ -1,8 +1,7 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
-import type { Card, TripIntent, Recommendation } from "@/types";
+import { useState, useEffect } from "react";
+import type { Card, TripIntent } from "@/types";
 import { loadProfile, saveProfile } from "@/lib/supabase";
-import { bestForTrip, bestForPurchase } from "@/lib/recommend";
 import { aiCardLookup } from "@/lib/ai";
 import ScreenCards from "@/components/ScreenCards";
 import ScreenTrip from "@/components/ScreenTrip";
@@ -20,8 +19,7 @@ export default function Home() {
   const [screen, setScreen] = useState<Screen>("landing");
   const [cards, setCards] = useState<Card[]>([]);
   const [intent, setIntent] = useState<TripIntent | null>(null);
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<"dark" | "light">("light");
   const [loadingSample, setLoadingSample] = useState(false);
 
   // Restore profile on mount
@@ -43,26 +41,13 @@ export default function Home() {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
 
-  const computeRecommendations = useCallback(
-    (tripIntent: TripIntent, currentCards: Card[]) => {
-      const isTravel = tripIntent.category === "travel";
-      const recs = isTravel
-        ? bestForTrip(currentCards, tripIntent.priority)
-        : bestForPurchase(currentCards, tripIntent.category);
-      setRecommendations(recs);
-    },
-    [],
-  );
-
   const handleTripSubmit = (tripIntent: TripIntent) => {
     setIntent(tripIntent);
-    computeRecommendations(tripIntent, cards);
     setScreen("results");
   };
 
   const handleStartOver = () => {
     setIntent(null);
-    setRecommendations([]);
     setScreen("landing");
   };
 
@@ -197,7 +182,7 @@ export default function Home() {
             </div>
 
             <p style={{ fontSize: "0.75rem", color: "var(--text-dim)", textAlign: "center" }}>
-              Powered by Azure OpenAI · Tavily · Supabase · Three.js
+              Powered by Azure OpenAI · Tavily · Supabase
             </p>
           </div>
         )}
@@ -225,7 +210,6 @@ export default function Home() {
           <ScreenResults
             cards={cards}
             intent={intent}
-            recommendations={recommendations}
             onStartOver={handleStartOver}
             onBack={() => setScreen("trip")}
           />

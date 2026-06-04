@@ -1,25 +1,19 @@
 "use client";
-import dynamic from "next/dynamic";
-import type { Card, TripIntent, Recommendation } from "@/types";
-
-const CardScene = dynamic(() => import("./CardScene"), { ssr: false });
+import { useEffect, useState } from "react";
+import type { Card, TripIntent } from "@/types";
+import { aiRecommend, type AIRecommendation } from "@/lib/ai";
 
 interface Props {
   cards: Card[];
   intent: TripIntent;
-  recommendations: Recommendation[];
   onStartOver: () => void;
   onBack: () => void;
 }
 
-const BOOKING_URLS: Record<string, string> = {
-  travel: "https://www.google.com/travel/flights",
-  dining: "https://www.opentable.com",
-  groceries: "https://www.instacart.com",
-  online: "https://www.amazon.com",
-  streaming: "https://www.netflix.com",
-  gas: "https://www.gasbuddy.com",
-  other: "https://www.google.com/search",
+const BADGE_STYLE: Record<string, { bg: string; color: string; border: string }> = {
+  "BEST OVERALL":     { bg: "#ede9fe", color: "#6c63ff", border: "#c4b5fd" },
+  "BEST EARNINGS":    { bg: "#ecfdf5", color: "#059669", border: "#6ee7b7" },
+  "BEST REDEMPTION":  { bg: "#fff7ed", color: "#d97706", border: "#fcd34d" },
 };
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -27,198 +21,194 @@ const CATEGORY_ICONS: Record<string, string> = {
   online: "📦", streaming: "📺", gas: "⛽", other: "💳",
 };
 
-export default function ScreenResults({ cards, intent, recommendations, onStartOver, onBack }: Props) {
-  const winner = recommendations[0];
+export default function ScreenResults({ cards, intent, onStartOver, onBack }: Props) {
+  const [recs, setRecs] = useState<AIRecommendation[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const sceneCards = recommendations.map((rec, i) => ({
-    name: rec.card.name,
-    color: rec.card.color,
-    isWinner: i === 0,
-  }));
+  useEffect(() => {
+    setLoading(true);
+    aiRecommend(cards, intent).then((r) => {
+      setRecs(r);
+      setLoading(false);
+    });
+  }, [cards, intent]);
 
-  const bookingUrl = BOOKING_URLS[intent.category] || BOOKING_URLS.other;
-
-  const formatPoints = (n: number) =>
-    n > 0 ? `+${n.toLocaleString()}` : n < 0 ? n.toLocaleString() : "—";
+  const cardColor = (name: string) => {
+    const found = cards.find(c => c.name === name);
+    return found?.color || "#6c63ff";
+  };
 
   return (
-    <div className="animate-fade-up">
-      {/* Trip pill */}
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
-        <div
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 8,
-            padding: "8px 18px",
-            background: "var(--surface-strong)", border: "1px solid var(--border)",
-            borderRadius: 20, fontSize: "0.83rem", color: "var(--text-muted)",
-          }}
-        >
+    <div style={{ maxWidth: 860, margin: "0 auto" }}>
+
+      {/* Trip context pill */}
+      <div style={{ textAlign: "center", marginBottom: 32 }}>
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: 10,
+          padding: "10px 20px",
+          background: "#f0f0ff", border: "1px solid #c4b5fd",
+          borderRadius: 24, fontSize: "0.9rem",
+        }}>
           <span>{CATEGORY_ICONS[intent.category] || "💳"}</span>
-          <span style={{ color: "var(--text)", fontWeight: 600 }}>{intent.summary}</span>
-          <span>·</span>
-          <span style={{ color: "var(--accent)", fontWeight: 600 }}>{intent.priority}</span>
+          <span style={{ color: "#1a1a2e", fontWeight: 600 }}>{intent.summary || intent.text.slice(0, 60)}</span>
+          <span style={{ color: "#9999bb" }}>·</span>
+          <span style={{ color: "#6c63ff", fontWeight: 600 }}>{intent.priority}</span>
         </div>
       </div>
 
-      {/* 3D card visualization */}
-      {sceneCards.length > 0 && (
-        <div
-          style={{
-            background: "var(--surface)", border: "1px solid var(--border)",
-            borderRadius: "var(--radius-lg)", padding: "24px",
-            marginBottom: 32, overflow: "hidden",
-          }}
-        >
-          <p
-            style={{
-              fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.1em",
-              textTransform: "uppercase", color: "var(--accent)", marginBottom: 16,
-              textAlign: "center",
-            }}
-          >
-            Your cards · ranked for this purchase
+      {/* Loading state */}
+      {loading && (
+        <div style={{
+          textAlign: "center", padding: "60px 20px",
+          background: "#fff", borderRadius: 20,
+          border: "1px solid #e8e8f0", boxShadow: "0 4px 24px rgba(108,99,255,0.08)",
+        }}>
+          <div style={{
+            width: 48, height: 48, margin: "0 auto 20px",
+            border: "3px solid #e8e8f0", borderTopColor: "#6c63ff",
+            borderRadius: "50%", animation: "spin 0.8s linear infinite",
+          }} />
+          <p style={{ fontSize: "1.05rem", fontWeight: 600, color: "#1a1a2e", marginBottom: 6 }}>
+            AI is analyzing your cards…
           </p>
-          <CardScene cards={sceneCards} />
-          <p
-            style={{
-              textAlign: "center", fontSize: "0.78rem",
-              color: "var(--text-dim)", marginTop: 12,
-            }}
-          >
-            Spotlight = top pick
+          <p style={{ fontSize: "0.88rem", color: "#8888aa" }}>
+            Building personalized recommendations for "{intent.text.slice(0, 50)}"
           </p>
         </div>
       )}
 
-      {/* Winner highlight banner */}
-      {winner && (
-        <div
-          style={{
-            background: "var(--accent-muted)", border: "2px solid var(--border-accent)",
-            borderRadius: "var(--radius-lg)", padding: "20px 24px",
-            marginBottom: 24, display: "flex", alignItems: "center", gap: 16,
-          }}
-        >
-          <div
-            style={{
-              width: 48, height: 48, borderRadius: 12,
-              background: winner.card.color,
-              boxShadow: "0 0 20px rgba(108,99,255,0.3)",
-              flexShrink: 0,
-            }}
-          />
-          <div style={{ flex: 1 }}>
-            <p style={{ fontSize: "0.75rem", color: "var(--accent)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-              Top recommendation
-            </p>
-            <p style={{ fontSize: "1.15rem", fontWeight: 700, color: "var(--text)", lineHeight: 1.3 }}>
-              {winner.card.name}
-            </p>
-            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginTop: 4 }}>
-              {winner.why}
-            </p>
-          </div>
-          <a
-            href={bookingUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="btn-primary"
-            style={{ whiteSpace: "nowrap", flexShrink: 0 }}
-          >
-            Book now →
-          </a>
-        </div>
-      )}
-
-      {/* All recommendation lanes */}
-      <div className="results-grid">
-        {recommendations.map((rec, i) => (
-          <div key={rec.card.id + i} className={`lane-card animate-fade-up ${i === 0 ? "winner" : ""}`}
-            style={{ animationDelay: `${i * 0.08}s` }}>
-            <div>
-              <span className="lane-badge">{rec.badge}</span>
-            </div>
-            <div>
-              <div className="lane-title">{rec.title}</div>
-              <div className="lane-card-name" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                <div
-                  style={{
-                    width: 10, height: 10, borderRadius: "50%",
-                    background: rec.card.color, flexShrink: 0,
-                  }}
-                />
-                {rec.card.name}
-              </div>
-            </div>
-
-            <div className="lane-metrics">
-              <div className="lane-metric">
-                <div className="lane-metric-label">Earn Rate</div>
-                <div className={`lane-metric-value ${i === 0 ? "accent" : ""}`}>
-                  {rec.rate}x
-                </div>
-              </div>
-              <div className="lane-metric">
-                <div className="lane-metric-label">Currency</div>
-                <div className="lane-metric-value" style={{ fontSize: "0.82rem" }}>
-                  {rec.card.cur}
-                </div>
-              </div>
-              <div className="lane-metric">
-                <div className="lane-metric-label">Pts Earned</div>
-                <div className={`lane-metric-value ${rec.pointsEarned > 0 ? "success" : ""}`}>
-                  {formatPoints(rec.pointsEarned)}
-                </div>
-              </div>
-              <div className="lane-metric">
-                <div className="lane-metric-label">Pts Spent</div>
-                <div className={`lane-metric-value ${rec.pointsSpent > 0 ? "gold" : ""}`}>
-                  {rec.pointsSpent > 0 ? rec.pointsSpent.toLocaleString() : "—"}
-                </div>
-              </div>
-            </div>
-
-            <p className="lane-why">{rec.why}</p>
-
-            {rec.card.sources.length > 0 && (
-              <div className="lane-sources">
-                Rates: {" "}
-                {rec.card.sources.slice(0, 1).map((s, si) => (
-                  <a key={si} href={s.url} target="_blank" rel="noreferrer">
-                    {s.title.slice(0, 30)}…
-                  </a>
-                ))}
-                {rec.card.asOf && ` · ${rec.card.asOf}`}
-              </div>
-            )}
-
-            <div className="lane-cta">
-              <a
-                href={bookingUrl}
-                target="_blank"
-                rel="noreferrer"
-                className={i === 0 ? "btn-primary btn-full" : "btn-secondary btn-full"}
+      {/* Recommendation cards */}
+      {!loading && recs.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {recs.map((rec, i) => {
+            const style = BADGE_STYLE[rec.badge] || BADGE_STYLE["BEST OVERALL"];
+            const color = cardColor(rec.card);
+            return (
+              <div
+                key={i}
+                style={{
+                  background: "#fff",
+                  border: `1px solid ${i === 0 ? "#c4b5fd" : "#e8e8f0"}`,
+                  borderLeft: `4px solid ${i === 0 ? "#6c63ff" : i === 1 ? "#059669" : "#d97706"}`,
+                  borderRadius: 16,
+                  padding: "24px 28px",
+                  boxShadow: i === 0 ? "0 4px 24px rgba(108,99,255,0.12)" : "0 2px 8px rgba(0,0,0,0.04)",
+                }}
               >
-                {i === 0 ? "Book with this card →" : "Use this path →"}
-              </a>
-            </div>
-          </div>
-        ))}
-      </div>
+                {/* Badge + card name */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{
+                      padding: "4px 12px", borderRadius: 20,
+                      fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em",
+                      background: style.bg, color: style.color, border: `1px solid ${style.border}`,
+                    }}>
+                      {rec.badge}
+                    </span>
+                    <h3 style={{ fontSize: "1.05rem", fontWeight: 700, color: "#1a1a2e", margin: 0 }}>
+                      {rec.title}
+                    </h3>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: color }} />
+                    <span style={{ fontSize: "0.82rem", color: "#5a5a7a", fontWeight: 500 }}>{rec.card}</span>
+                  </div>
+                </div>
+
+                {/* Action — the main AI text */}
+                <p style={{
+                  fontSize: "0.97rem", color: "#2a2a3e", lineHeight: 1.65,
+                  marginBottom: 20, fontWeight: 400,
+                }}>
+                  {rec.action}
+                </p>
+
+                {/* Metrics row */}
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{
+                    flex: 1, minWidth: 140,
+                    background: "#f8f8ff", border: "1px solid #e8e8f0",
+                    borderRadius: 12, padding: "12px 16px",
+                  }}>
+                    <div style={{ fontSize: "0.7rem", color: "#9999bb", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+                      Points Impact
+                    </div>
+                    <div style={{ fontSize: "1rem", fontWeight: 700, color: style.color }}>
+                      {rec.points_impact}
+                    </div>
+                  </div>
+                  <div style={{
+                    flex: 1, minWidth: 140,
+                    background: "#f8f8ff", border: "1px solid #e8e8f0",
+                    borderRadius: 12, padding: "12px 16px",
+                  }}>
+                    <div style={{ fontSize: "0.7rem", color: "#9999bb", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+                      Dollar Value
+                    </div>
+                    <div style={{ fontSize: "1rem", fontWeight: 700, color: "#1a1a2e" }}>
+                      {rec.dollar_value}
+                    </div>
+                  </div>
+                  <div style={{
+                    flex: 2, minWidth: 200,
+                    background: "#f8f8ff", border: "1px solid #e8e8f0",
+                    borderRadius: 12, padding: "12px 16px",
+                  }}>
+                    <div style={{ fontSize: "0.7rem", color: "#9999bb", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+                      Why This Works
+                    </div>
+                    <div style={{ fontSize: "0.85rem", color: "#5a5a7a", lineHeight: 1.4 }}>
+                      {rec.why}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Cards in play summary */}
+      {!loading && (
+        <div style={{
+          marginTop: 24, padding: "16px 20px",
+          background: "#f8f8ff", border: "1px solid #e8e8f0",
+          borderRadius: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+        }}>
+          <span style={{ fontSize: "0.8rem", color: "#8888aa", fontWeight: 600 }}>CARDS ANALYZED:</span>
+          {cards.map(c => (
+            <span key={c.id} style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "4px 12px",
+              background: "#fff", border: "1px solid #e8e8f0",
+              borderRadius: 20, fontSize: "0.8rem", color: "#5a5a7a",
+            }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
+              {c.name}
+              {c.points > 0 && <span style={{ color: "#6c63ff", fontWeight: 600 }}> · {c.points.toLocaleString()}pts</span>}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Actions */}
-      <div style={{ display: "flex", gap: 12, marginTop: 32, justifyContent: "center" }}>
-        <button className="btn-ghost" onClick={onBack}>← Change trip details</button>
-        <button className="btn-secondary" onClick={onStartOver}>Start over</button>
+      <div style={{ display: "flex", gap: 12, marginTop: 28, justifyContent: "center" }}>
+        <button onClick={onBack} style={{
+          padding: "10px 22px", background: "transparent", color: "#8888aa",
+          border: "1px solid #e8e8f0", borderRadius: 10, cursor: "pointer", fontSize: "0.9rem",
+        }}>
+          ← Change trip
+        </button>
+        <button onClick={onStartOver} style={{
+          padding: "10px 22px", background: "#6c63ff", color: "#fff",
+          border: "none", borderRadius: 10, cursor: "pointer", fontSize: "0.9rem", fontWeight: 600,
+        }}>
+          Start over
+        </button>
       </div>
 
-      <p
-        style={{
-          textAlign: "center", fontSize: "0.75rem",
-          color: "var(--text-dim)", marginTop: 20,
-        }}
-      >
-        Rates fetched from live web via Tavily · Recommendations are deterministic math, not AI opinion
+      <p style={{ textAlign: "center", fontSize: "0.73rem", color: "#c0c0d0", marginTop: 20 }}>
+        Powered by Azure OpenAI · Recommendations are AI-generated based on your cards and intent
       </p>
     </div>
   );

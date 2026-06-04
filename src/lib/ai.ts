@@ -111,3 +111,67 @@ export async function aiCardLookup(query: string): Promise<Card> {
     return seedFallback(query);
   }
 }
+
+export type AIRecommendation = {
+  badge: string;
+  title: string;
+  card: string;
+  action: string;
+  points_impact: string;
+  dollar_value: string;
+  why: string;
+};
+
+const FALLBACK_RECS = (cards: Card[], intentText: string): AIRecommendation[] => [
+  {
+    badge: "BEST OVERALL",
+    title: `Use ${cards[0]?.name || "your top card"} for best value`,
+    card: cards[0]?.name || "Your card",
+    action: `Pay with ${cards[0]?.name || "your card"} to earn ${cards[0]?.r?.travel || 3}x points on this purchase. ${cards[0]?.points > 0 ? `You have ${cards[0].points.toLocaleString()} ${cards[0].cur} — consider redeeming toward this.` : "Build your balance for future redemptions."}`,
+    points_impact: `+${Math.round(450 * (cards[0]?.r?.travel || 3)).toLocaleString()} ${cards[0]?.cur || "points"} earned`,
+    dollar_value: `Worth ~$${Math.round(450 * (cards[0]?.r?.travel || 3) * (cards[0]?.cpp || 1.5) / 100)} at ${cards[0]?.cpp || 1.5} cpp`,
+    why: "Maximizes earn rate for your travel category.",
+  },
+  {
+    badge: "BEST EARNINGS",
+    title: "Earn points for your next trip",
+    card: cards[0]?.name || "Your card",
+    action: `Pay cash with ${cards[0]?.name || "your card"} and earn ${cards[0]?.r?.travel || 3}x points. Don't redeem now — save these points for a higher-value redemption like a business class transfer.`,
+    points_impact: `+${Math.round(450 * (cards[0]?.r?.travel || 3)).toLocaleString()} ${cards[0]?.cur || "points"} earned`,
+    dollar_value: "Best for building toward a premium redemption",
+    why: `Your priority: ${intentText.slice(0, 60)}`,
+  },
+  {
+    badge: "BEST REDEMPTION",
+    title: cards[0]?.points > 10000 ? "Redeem points to cover the cost" : "Save points for higher value",
+    card: cards[0]?.name || "Your card",
+    action: cards[0]?.points > 10000
+      ? `Redeem ${Math.min(cards[0].points, 30000).toLocaleString()} ${cards[0]?.cur || "points"} to offset the cost. At ${cards[0]?.cpp || 1.5} cpp this covers ~$${Math.round(Math.min(cards[0]?.points || 0, 30000) * (cards[0]?.cpp || 1.5) / 100)}.`
+      : `Your current balance is low for a full redemption. Pay cash now, earn more points, and redeem when you have 50,000+ for maximum value.`,
+    points_impact: cards[0]?.points > 10000 ? `-${Math.min(cards[0]?.points || 0, 30000).toLocaleString()} points redeemed` : "Build balance first",
+    dollar_value: cards[0]?.points > 10000 ? `~$${Math.round(Math.min(cards[0]?.points || 0, 30000) * (cards[0]?.cpp || 1.5) / 100)} offset` : "Save for larger redemption",
+    why: "Burn points at their highest possible value.",
+  },
+];
+
+export async function aiRecommend(
+  cards: Card[],
+  intent: { text: string; category: string; priority: string }
+): Promise<AIRecommendation[]> {
+  try {
+    const r = await fetch("/api/ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode: "recommend",
+        cards: cards.map(c => ({ name: c.name, cur: c.cur, points: c.points, r: c.r, cpp: c.cpp })),
+        intent,
+      }),
+    });
+    const d = await r.json();
+    if (d.error || !d.recommendations?.length) throw new Error(d.error || "empty");
+    return d.recommendations as AIRecommendation[];
+  } catch {
+    return FALLBACK_RECS(cards, intent.text);
+  }
+}
