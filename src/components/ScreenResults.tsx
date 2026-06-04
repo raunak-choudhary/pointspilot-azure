@@ -21,6 +21,40 @@ const CATEGORY_ICONS: Record<string, string> = {
   online: "📦", streaming: "📺", gas: "⛽", other: "💳",
 };
 
+const CARD_PORTALS: Record<string, { label: string; url: string }> = {
+  "chase sapphire reserve":     { label: "Chase Travel Portal", url: "https://travel.chase.com" },
+  "chase sapphire preferred":   { label: "Chase Travel Portal", url: "https://travel.chase.com" },
+  "chase freedom unlimited":    { label: "Chase Travel Portal", url: "https://travel.chase.com" },
+  "amex platinum":              { label: "Amex Travel", url: "https://travel.americanexpress.com" },
+  "american express platinum":  { label: "Amex Travel", url: "https://travel.americanexpress.com" },
+  "amex gold":                  { label: "Amex Travel", url: "https://travel.americanexpress.com" },
+  "american express gold":      { label: "Amex Travel", url: "https://travel.americanexpress.com" },
+  "capital one venture x":      { label: "Capital One Travel", url: "https://travel.capitalone.com" },
+  "capital one venture":        { label: "Capital One Travel", url: "https://travel.capitalone.com" },
+  "citi premier":               { label: "Citi Travel", url: "https://travel.citi.com" },
+  "delta skymiles reserve":     { label: "Delta.com", url: "https://www.delta.com/flight-search/book-a-flight" },
+  "delta skymiles gold":        { label: "Delta.com", url: "https://www.delta.com/flight-search/book-a-flight" },
+  "united explorer":            { label: "United.com", url: "https://www.united.com/en/us/book-flight" },
+};
+
+const CATEGORY_FALLBACK: Record<string, { label: string; url: string }> = {
+  travel:     { label: "Google Flights", url: "https://www.google.com/travel/flights" },
+  dining:     { label: "OpenTable", url: "https://www.opentable.com" },
+  groceries:  { label: "Instacart", url: "https://www.instacart.com" },
+  online:     { label: "Amazon", url: "https://www.amazon.com" },
+  streaming:  { label: "Netflix", url: "https://www.netflix.com" },
+  gas:        { label: "GasBuddy", url: "https://www.gasbuddy.com" },
+  other:      { label: "Google", url: "https://www.google.com" },
+};
+
+function getBookingLink(cardName: string, category: string): { label: string; url: string } {
+  const key = cardName.toLowerCase();
+  for (const [k, v] of Object.entries(CARD_PORTALS)) {
+    if (key.includes(k) || k.includes(key.split(" ").slice(0, 2).join(" "))) return v;
+  }
+  return CATEGORY_FALLBACK[category] || CATEGORY_FALLBACK.other;
+}
+
 export default function ScreenResults({ cards, intent, onStartOver, onBack }: Props) {
   const [recs, setRecs] = useState<AIRecommendation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,6 +156,31 @@ export default function ScreenResults({ cards, intent, onStartOver, onBack }: Pr
                 }}>
                   {rec.action}
                 </p>
+
+                {/* Booking button */}
+                {(() => {
+                  const link = getBookingLink(rec.card, intent.category);
+                  return (
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 8,
+                        padding: "10px 20px", marginBottom: 16,
+                        background: i === 0 ? "#6c63ff" : "#f0f0ff",
+                        color: i === 0 ? "#fff" : "#6c63ff",
+                        border: `1px solid ${i === 0 ? "#6c63ff" : "#c4b5fd"}`,
+                        borderRadius: 10, fontSize: "0.88rem", fontWeight: 600,
+                        textDecoration: "none", transition: "opacity 0.15s",
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
+                      onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+                    >
+                      {i === 0 ? "🔗" : "↗"} Book via {link.label}
+                    </a>
+                  );
+                })()}
 
                 {/* Metrics row */}
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
