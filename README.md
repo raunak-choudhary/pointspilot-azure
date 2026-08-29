@@ -8,6 +8,11 @@ options with plain deterministic scoring.
 Built at the GitHub Copilot x Azure hackathon during NYC Tech Week, June 2026, in a roughly
 three hour build window.
 
+This was one of two implementations the team built in parallel, the plan being to submit
+whichever was ready first against the deadline. A teammate's version finished first and was the
+one submitted; it is at [pointspilot](https://github.com/raunak-choudhary/pointspilot) and
+credits the full team. This repository is the implementation I built.
+
 ## The problem it works around
 
 Ask a language model what an Amex Gold earns on dining and it will answer confidently and
